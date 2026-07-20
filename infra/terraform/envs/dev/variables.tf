@@ -216,3 +216,64 @@ variable "resource_tags" {
     error_message = "Resource tag values cannot be empty."
   }
 }
+
+variable "enable_nat_gateway" {
+  description = "Whether to create a NAT Gateway for private application subnet internet access."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
+variable "application_port" {
+  description = "TCP port exposed by the application to the ALB."
+  type        = number
+  default     = 8080
+  nullable    = false
+
+  validation {
+    condition = (
+      var.application_port >= 1 &&
+      var.application_port <= 65535 &&
+      var.application_port != 22
+    )
+    error_message = "Application port must be between 1 and 65535 and must not be SSH port 22."
+  }
+}
+
+variable "alb_ingress_cidrs" {
+  description = "Approved IPv4 CIDR blocks allowed to reach the public ALB."
+  type        = set(string)
+  nullable    = false
+
+  validation {
+    condition = (
+      length(var.alb_ingress_cidrs) > 0 &&
+      alltrue([
+        for cidr in var.alb_ingress_cidrs : can(cidrnetmask(cidr))
+      ])
+    )
+    error_message = "Provide at least one valid IPv4 CIDR block for ALB access."
+  }
+}
+variable "project" {
+  description = "Project name"
+  type        = string
+}
+
+
+variable "public_subnet_cidrs" {
+  description = "Public subnet CIDR ranges"
+  type        = list(string)
+}
+
+
+variable "private_app_subnet_cidrs" {
+  description = "Private application subnet CIDR ranges"
+  type        = list(string)
+}
+
+
+variable "private_db_subnet_cidrs" {
+  description = "Private database subnet CIDR ranges"
+  type        = list(string)
+}
