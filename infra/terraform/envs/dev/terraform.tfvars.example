@@ -39,3 +39,30 @@ resource_tags = {
   week         = "week-10"
   "managed-by" = "terraform"
 }
+
+project = "meeps"
+
+
+public_subnet_cidrs = [
+  "10.0.1.0/24",
+  "10.0.2.0/24"
+]
+
+
+private_app_subnet_cidrs = [
+  "10.0.11.0/24",
+  "10.0.12.0/24"
+]
+
+
+private_db_subnet_cidrs = [
+  "10.0.21.0/24",
+  "10.0.22.0/24"
+]
+
+
+enable_nat_gateway = false
+
+application_port = 8080
+
+alb_ingress_cidrs = ["0.0.0.0/0"]
