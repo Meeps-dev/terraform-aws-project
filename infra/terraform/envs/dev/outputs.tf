@@ -68,3 +68,23 @@ output "common_tags" {
   description = "Tags that future AWS resources will inherit."
   value       = local.common_tags
 }
+
+output "alb_dns_name" {
+  description = "Public DNS name of the Application Load Balancer."
+  value       = module.alb.alb_dns_name
+}
+
+output "target_group_arn" {
+  description = "ARN of the backend target group."
+  value       = module.alb.target_group_arn
+}
+
+output "backend_instance_id" {
+  description = "ID of the private backend EC2 instance."
+  value       = module.compute.instance_id
+}
+
+output "backend_private_ip" {
+  description = "Private IPv4 address of the backend EC2 instance."
+  value       = module.compute.private_ip
+}
