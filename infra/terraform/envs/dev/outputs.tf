@@ -55,15 +55,6 @@ output "database_configuration" {
   }
 }
 
-output "database_credentials_configured" {
-  description = "Confirms credentials were supplied without displaying them."
-  value = {
-    username_configured = length(trimspace(var.database_config.username)) > 0
-    password_configured = length(var.database_password) >= 16
-  }
-  sensitive = true
-}
-
 output "common_tags" {
   description = "Tags that future AWS resources will inherit."
   value       = local.common_tags
@@ -87,4 +78,35 @@ output "backend_instance_id" {
 output "backend_private_ip" {
   description = "Private IPv4 address of the backend EC2 instance."
   value       = module.compute.private_ip
+}
+
+output "database_instance_identifier" {
+  description = "Identifier of the private PostgreSQL instance."
+  value       = module.rds.db_instance_identifier
+}
+
+output "database_endpoint" {
+  description = "Private RDS endpoint including its port."
+  value       = module.rds.database_endpoint
+}
+
+output "database_port" {
+  description = "Port used by the PostgreSQL database."
+  value       = module.rds.database_port
+}
+
+output "database_master_user_secret_arn" {
+  description = "ARN of the RDS-managed Secrets Manager secret."
+  value       = module.rds.master_user_secret_arn
+  sensitive   = true
+}
+
+output "application_s3_bucket_name" {
+  description = "Name of the private application S3 bucket."
+  value       = module.app_s3.bucket_name
+}
+
+output "application_s3_bucket_arn" {
+  description = "ARN of the private application S3 bucket."
+  value       = module.app_s3.bucket_arn
 }

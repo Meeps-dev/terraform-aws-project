@@ -1,6 +1,16 @@
 locals {
   name_prefix = "${var.resource_tags.project}-${var.environment}"
 
+  application_bucket_name = join(
+    "-",
+    [
+      var.project,
+      var.environment,
+      "application",
+      data.aws_caller_identity.current.account_id
+    ]
+  )
+
   common_tags = merge(
     var.resource_tags,
     {

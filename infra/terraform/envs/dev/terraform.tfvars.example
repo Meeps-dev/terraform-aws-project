@@ -32,8 +32,6 @@ database_config = {
   deletion_protection = false
 }
 
-database_password = "REPLACE_WITH_A_LOCAL_SECRET"
-
 resource_tags = {
   project      = "meeps"
   week         = "week-10"
