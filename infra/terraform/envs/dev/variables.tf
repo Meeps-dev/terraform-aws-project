@@ -174,20 +174,6 @@ variable "database_config" {
   }
 }
 
-variable "database_password" {
-  description = "Master password for the future database."
-  type        = string
-  sensitive   = true
-  nullable    = false
-
-  validation {
-    condition = (
-      length(var.database_password) >= 16 &&
-      length(var.database_password) <= 128
-    )
-    error_message = "Database password must contain between 16 and 128 characters."
-  }
-}
 
 variable "resource_tags" {
   description = "Standard tags applied to AWS resources."

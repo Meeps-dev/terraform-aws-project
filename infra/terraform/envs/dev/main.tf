@@ -55,3 +55,29 @@ module "compute" {
   root_volume_type    = var.ec2_config.root_volume_type
   detailed_monitoring = var.ec2_config.detailed_monitoring
 }
+
+
+module "rds" {
+  source = "../../modules/rds"
+
+  project     = var.project
+  environment = var.environment
+
+  private_database_subnet_ids = module.vpc.private_database_subnet_ids
+  rds_security_group_id       = module.security.rds_security_group_id
+
+  database_config         = var.database_config
+  backup_retention_period = 1
+
+  tags = local.common_tags
+}
+
+
+module "app_s3" {
+  source = "../../modules/app-s3"
+
+  bucket_name   = local.application_bucket_name
+  force_destroy = false
+
+  tags = local.common_tags
+}
