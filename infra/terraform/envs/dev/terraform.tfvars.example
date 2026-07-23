@@ -1,44 +1,12 @@
 # Copy this file to terraform.tfvars.
-# Replace placeholder secrets only in the ignored local copy.
-
-aws_region = "eu-west-2"
-environment = "dev"
+# Do not store credentials here; RDS manages its master credentials in Secrets Manager.
+aws_region  = "eu-west-2"
+project     = "meeps"
 owner       = "meeps"
+environment = "dev"
+
 
 vpc_cidr = "10.0.0.0/16"
-
-subnet_cidrs = {
-  public           = ["10.0.1.0/24", "10.0.2.0/24"]
-  private_ec2      = ["10.0.11.0/24", "10.0.12.0/24"]
-  private_database = ["10.0.21.0/24", "10.0.22.0/24"]
-}
-
-ec2_config = {
-  instance_type       = "t3.micro"
-  root_volume_size    = 8
-  root_volume_type    = "gp3"
-  detailed_monitoring = false
-}
-
-database_config = {
-  engine              = "postgres"
-  engine_version      = "16"
-  instance_class      = "db.t3.micro"
-  allocated_storage   = 20
-  database_name       = "meepsapp"
-  username            = "meepsadmin"
-  port                = 5432
-  multi_az            = false
-  deletion_protection = false
-}
-
-resource_tags = {
-  project      = "meeps"
-  week         = "week-10"
-  "managed-by" = "terraform"
-}
-
-project = "meeps"
 
 
 public_subnet_cidrs = [
@@ -58,9 +26,29 @@ private_db_subnet_cidrs = [
   "10.0.22.0/24"
 ]
 
-
 enable_nat_gateway = false
 
 application_port = 8080
 
 alb_ingress_cidrs = ["0.0.0.0/0"]
+
+
+ec2_config = {
+  instance_type       = "t3.micro"
+  root_volume_size    = 8
+  root_volume_type    = "gp3"
+  detailed_monitoring = false
+}
+
+
+database_config = {
+  engine              = "postgres"
+  engine_version      = "16"
+  instance_class      = "db.t3.micro"
+  allocated_storage   = 20
+  database_name       = "meepsapp"
+  username            = "meepsadmin"
+  port                = 5432
+  multi_az            = false
+  deletion_protection = false
+}

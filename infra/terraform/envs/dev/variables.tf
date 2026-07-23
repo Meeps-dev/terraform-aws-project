@@ -10,17 +10,11 @@ variable "aws_region" {
   }
 }
 
-variable "environment" {
-  description = "Deployment environment."
+variable "project" {
+  description = "Project name"
   type        = string
-  default     = "dev"
-  nullable    = false
-
-  validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, staging, or prod."
-  }
 }
+
 
 variable "owner" {
   description = "Person responsible for the infrastructure."
@@ -34,6 +28,20 @@ variable "owner" {
   }
 }
 
+
+variable "environment" {
+  description = "Deployment environment."
+  type        = string
+  default     = "dev"
+  nullable    = false
+
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, staging, or prod."
+  }
+}
+
+
 variable "vpc_cidr" {
   description = "IPv4 CIDR block assigned to the VPC."
   type        = string
@@ -46,43 +54,66 @@ variable "vpc_cidr" {
   }
 }
 
-variable "subnet_cidrs" {
-  description = "CIDR blocks for public, private EC2, and private database subnets."
-  type = object({
-    public           = list(string)
-    private_ec2      = list(string)
-    private_database = list(string)
-  })
 
-  default = {
-    public           = ["10.0.1.0/24", "10.0.2.0/24"]
-    private_ec2      = ["10.0.11.0/24", "10.0.12.0/24"]
-    private_database = ["10.0.21.0/24", "10.0.22.0/24"]
-  }
+variable "public_subnet_cidrs" {
+  description = "Public subnet CIDR ranges"
+  type        = list(string)
+}
 
-  validation {
-    condition = alltrue([
-      for cidr in concat(
-        var.subnet_cidrs.public,
-        var.subnet_cidrs.private_ec2,
-        var.subnet_cidrs.private_database
-      ) : can(cidrhost(cidr, 0))
-    ])
-    error_message = "Every subnet value must be a valid CIDR block."
-  }
+
+variable "private_app_subnet_cidrs" {
+  description = "Private application subnet CIDR ranges"
+  type        = list(string)
+}
+
+
+variable "private_db_subnet_cidrs" {
+  description = "Private database subnet CIDR ranges"
+  type        = list(string)
+}
+
+variable "enable_nat_gateway" {
+  description = "Whether to create a NAT Gateway for private application subnet internet access."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
+variable "application_port" {
+  description = "TCP port exposed by the application to the ALB."
+  type        = number
+  default     = 8080
+  nullable    = false
 
   validation {
     condition = (
-      length(var.subnet_cidrs.public) >= 2 &&
-      length(var.subnet_cidrs.private_ec2) >= 2 &&
-      length(var.subnet_cidrs.private_database) >= 2
+      var.application_port >= 1 &&
+      var.application_port <= 65535 &&
+      var.application_port != 22
     )
-    error_message = "Provide at least two CIDRs for each subnet tier."
+    error_message = "Application port must be between 1 and 65535 and must not be SSH port 22."
   }
 }
 
+variable "alb_ingress_cidrs" {
+  description = "Approved IPv4 CIDR blocks allowed to reach the public ALB."
+  type        = set(string)
+  nullable    = false
+
+  validation {
+    condition = (
+      length(var.alb_ingress_cidrs) > 0 &&
+      alltrue([
+        for cidr in var.alb_ingress_cidrs : can(cidrnetmask(cidr))
+      ])
+    )
+    error_message = "Provide at least one valid IPv4 CIDR block for ALB access."
+  }
+}
+
+
 variable "ec2_config" {
-  description = "EC2 configuration that will be used by the application servers."
+  description = "Configuration for the private backend EC2 instance."
   type = object({
     instance_type       = string
     root_volume_size    = number
@@ -116,8 +147,9 @@ variable "ec2_config" {
   }
 }
 
+
 variable "database_config" {
-  description = "Configuration for the future private PostgreSQL database."
+  description = "Configuration for the private PostgreSQL database."
   type = object({
     engine              = string
     engine_version      = string
@@ -175,91 +207,4 @@ variable "database_config" {
 }
 
 
-variable "resource_tags" {
-  description = "Standard tags applied to AWS resources."
-  type        = map(string)
-  nullable    = false
 
-  default = {
-    project      = "meeps"
-    week         = "week-10"
-    "managed-by" = "terraform"
-  }
-
-  validation {
-    condition = alltrue([
-      for required_key in ["project", "week", "managed-by"] :
-      contains(keys(var.resource_tags), required_key)
-    ])
-    error_message = "Resource tags must include project, week, and managed-by."
-  }
-
-  validation {
-    condition = alltrue([
-      for tag_value in values(var.resource_tags) :
-      length(trimspace(tag_value)) > 0
-    ])
-    error_message = "Resource tag values cannot be empty."
-  }
-}
-
-variable "enable_nat_gateway" {
-  description = "Whether to create a NAT Gateway for private application subnet internet access."
-  type        = bool
-  default     = false
-  nullable    = false
-}
-
-variable "application_port" {
-  description = "TCP port exposed by the application to the ALB."
-  type        = number
-  default     = 8080
-  nullable    = false
-
-  validation {
-    condition = (
-      var.application_port >= 1 &&
-      var.application_port <= 65535 &&
-      var.application_port != 22
-    )
-    error_message = "Application port must be between 1 and 65535 and must not be SSH port 22."
-  }
-}
-
-variable "alb_ingress_cidrs" {
-  description = "Approved IPv4 CIDR blocks allowed to reach the public ALB."
-  type        = set(string)
-  nullable    = false
-
-  validation {
-    condition = (
-      length(var.alb_ingress_cidrs) > 0 &&
-      alltrue([
-        for cidr in var.alb_ingress_cidrs : can(cidrnetmask(cidr))
-      ])
-    )
-    error_message = "Provide at least one valid IPv4 CIDR block for ALB access."
-  }
-}
-variable "project" {
-  description = "Project name"
-  type        = string
-}
-
-
-variable "public_subnet_cidrs" {
-  description = "Public subnet CIDR ranges"
-  type        = list(string)
-}
-
-
-variable "private_app_subnet_cidrs" {
-  description = "Private application subnet CIDR ranges"
-  type        = list(string)
-}
-
-
-variable "private_db_subnet_cidrs" {
-  description = "Private database subnet CIDR ranges"
-  type        = list(string)
-}
