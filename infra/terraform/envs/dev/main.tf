@@ -1,20 +1,17 @@
+### Networking
 module "vpc" {
   source = "../../modules/vpc"
 
   project = var.project
 
-  vpc_cidr = var.vpc_cidr
-
-  public_subnet_cidrs = var.public_subnet_cidrs
-
+  vpc_cidr                 = var.vpc_cidr
+  public_subnet_cidrs      = var.public_subnet_cidrs
   private_app_subnet_cidrs = var.private_app_subnet_cidrs
-
-  private_db_subnet_cidrs = var.private_db_subnet_cidrs
-
-  enable_nat_gateway = var.enable_nat_gateway
+  private_db_subnet_cidrs  = var.private_db_subnet_cidrs
+  enable_nat_gateway       = var.enable_nat_gateway
 }
 
-
+### Security
 module "security" {
   source = "../../modules/security"
 
@@ -26,6 +23,7 @@ module "security" {
   database_port     = var.database_config.port
 }
 
+### Load Balancing
 module "alb" {
   source = "../../modules/alb"
 
@@ -34,9 +32,9 @@ module "alb" {
   public_subnet_ids     = module.vpc.public_subnet_ids
   alb_security_group_id = module.security.alb_security_group_id
   application_port      = var.application_port
-  health_check_path     = "/health"
 }
 
+### Compute
 module "compute" {
   source = "../../modules/compute"
 
@@ -56,7 +54,7 @@ module "compute" {
   detailed_monitoring = var.ec2_config.detailed_monitoring
 }
 
-
+### Database
 module "rds" {
   source = "../../modules/rds"
 
@@ -65,19 +63,15 @@ module "rds" {
 
   private_database_subnet_ids = module.vpc.private_database_subnet_ids
   rds_security_group_id       = module.security.rds_security_group_id
-
-  database_config         = var.database_config
-  backup_retention_period = 1
+  database_config             = var.database_config
 
   tags = local.common_tags
 }
 
-
+### Application Storage
 module "app_s3" {
   source = "../../modules/app-s3"
 
-  bucket_name   = local.application_bucket_name
-  force_destroy = false
-
-  tags = local.common_tags
+  bucket_name = local.application_bucket_name
+  tags        = local.common_tags
 }

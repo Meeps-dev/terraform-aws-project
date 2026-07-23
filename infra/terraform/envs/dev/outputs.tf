@@ -29,10 +29,16 @@ output "approved_ami" {
 }
 
 output "network_configuration" {
-  description = "Planned VPC and subnet CIDR configuration."
+  description = "VPC and subnet CIDR configuration."
+
   value = {
-    vpc_cidr     = var.vpc_cidr
-    subnet_cidrs = var.subnet_cidrs
+    vpc_cidr = var.vpc_cidr
+
+    subnet_cidrs = {
+      public           = var.public_subnet_cidrs
+      private_ec2      = var.private_app_subnet_cidrs
+      private_database = var.private_db_subnet_cidrs
+    }
   }
 }
 
