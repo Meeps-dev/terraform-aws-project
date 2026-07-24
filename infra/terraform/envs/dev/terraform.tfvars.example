@@ -1,5 +1,6 @@
 # Copy this file to terraform.tfvars.
 # Do not store credentials here; RDS manages its master credentials in Secrets Manager.
+
 aws_region  = "eu-west-2"
 project     = "meeps"
 owner       = "meeps"

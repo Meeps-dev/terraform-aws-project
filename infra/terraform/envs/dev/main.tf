@@ -1,4 +1,5 @@
 ### Networking
+
 module "vpc" {
   source = "../../modules/vpc"
 
@@ -12,6 +13,7 @@ module "vpc" {
 }
 
 ### Security
+
 module "security" {
   source = "../../modules/security"
 
@@ -24,6 +26,7 @@ module "security" {
 }
 
 ### Load Balancing
+
 module "alb" {
   source = "../../modules/alb"
 
@@ -35,6 +38,7 @@ module "alb" {
 }
 
 ### Compute
+
 module "compute" {
   source = "../../modules/compute"
 
@@ -55,6 +59,7 @@ module "compute" {
 }
 
 ### Database
+
 module "rds" {
   source = "../../modules/rds"
 
@@ -69,6 +74,7 @@ module "rds" {
 }
 
 ### Application Storage
+
 module "app_s3" {
   source = "../../modules/app-s3"
 

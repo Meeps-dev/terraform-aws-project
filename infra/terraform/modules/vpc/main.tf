@@ -94,32 +94,6 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_eip" "nat" {
-  count = var.enable_nat_gateway ? 1 : 0
-
-  domain = "vpc"
-
-  tags = {
-    Name = "${var.project}-nat-eip"
-  }
-}
-
-resource "aws_nat_gateway" "main" {
-  count = var.enable_nat_gateway ? 1 : 0
-
-  allocation_id = aws_eip.nat[0].id
-
-  subnet_id = aws_subnet.public[0].id
-
-  tags = {
-    Name = "${var.project}-nat"
-  }
-
-  depends_on = [
-    aws_internet_gateway.main
-  ]
-}
-
 resource "aws_route_table" "private_app" {
   vpc_id = aws_vpc.main.id
 
@@ -160,4 +134,31 @@ resource "aws_route_table_association" "database" {
   subnet_id = aws_subnet.private_db[count.index].id
 
   route_table_id = aws_route_table.database.id
+}
+
+
+resource "aws_eip" "nat" {
+  count = var.enable_nat_gateway ? 1 : 0
+
+  domain = "vpc"
+
+  tags = {
+    Name = "${var.project}-nat-eip"
+  }
+}
+
+resource "aws_nat_gateway" "main" {
+  count = var.enable_nat_gateway ? 1 : 0
+
+  allocation_id = aws_eip.nat[0].id
+
+  subnet_id = aws_subnet.public[0].id
+
+  tags = {
+    Name = "${var.project}-nat"
+  }
+
+  depends_on = [
+    aws_internet_gateway.main
+  ]
 }
