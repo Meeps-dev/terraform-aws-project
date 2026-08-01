@@ -35,3 +35,8 @@ credentials
 
 # macOS
 .DS_Store
+
+# Local Terraform bootstrap configuration
+bootstrap/github-oidc/backend.hcl
+bootstrap/github-oidc/terraform.tfvars
+bootstrap/github-oidc/*.tfplan

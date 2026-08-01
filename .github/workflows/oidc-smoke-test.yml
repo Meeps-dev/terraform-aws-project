@@ -1,0 +1,96 @@
+name: Day 73 - AWS OIDC Smoke Test
+
+on:
+  push:
+    branches:
+      - "feature/**"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-plan-role:
+    name: Verify branch-trusted plan role
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+
+      - name: Verify assumed AWS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws sts get-caller-identity
+
+          actual_account="$(
+            aws sts get-caller-identity \
+              --query Account \
+              --output text
+          )"
+
+          test "${actual_account}" = "${{ vars.AWS_ACCOUNT_ID }}"
+
+          assumed_arn="$(
+            aws sts get-caller-identity \
+              --query Arn \
+              --output text
+          )"
+
+          echo "Assumed ARN: ${assumed_arn}"
+
+          [[ "${assumed_arn}" == *":assumed-role/github-plan-role/"* ]]
+
+  verify-apply-role:
+    name: Verify environment-trusted apply role
+
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
+
+    environment: dev
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-apply-${{ github.run_id }}-${{ github.run_attempt }}
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+
+      - name: Verify assumed AWS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws sts get-caller-identity
+
+          assumed_arn="$(
+            aws sts get-caller-identity \
+              --query Arn \
+              --output text
+          )"
+
+          echo "Assumed ARN: ${assumed_arn}"
+
+          [[ "${assumed_arn}" == *":assumed-role/github-apply-role/"* ]]

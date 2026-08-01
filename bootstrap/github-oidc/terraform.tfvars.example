@@ -1,0 +1,25 @@
+aws_region = "eu-west-2"
+
+# Use null when the provider does not already exist.
+existing_oidc_provider_arn = null
+
+# Use the exact prefixes discovered from the GitHub token.
+terraform_subject_prefix = "repo:Meeps-dev@179766128/terraform-aws-project@1303992885
+app_subject_prefix       = "repo:Meeps-dev/users-posts-api
+
+github_environment = "dev"
+
+terraform_state_bucket_name = "meeps-terraform-state-256748318717-eu-west-2"
+terraform_state_key         = "week-10/dev/terraform.tfstate"
+
+deployment_bucket_name = "meeps-users-posts-api-artifacts-256748318717-eu-west-2"
+application_name       = "users-posts-api"
+
+managed_s3_bucket_arns = [ "arn:aws:s3:::meeps-users-posts-api-artifacts-256748318717-eu-west-2",]
+
+tags = {
+  project     = "meeps"
+  week        = "week-11"
+  environment = "dev"
+  managed-by  = "terraform"
+}
