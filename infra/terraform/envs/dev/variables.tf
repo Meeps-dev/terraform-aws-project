@@ -111,7 +111,6 @@ variable "alb_ingress_cidrs" {
   }
 }
 
-
 variable "ec2_config" {
   description = "Configuration for the private backend EC2 instance."
   type = object({
@@ -206,5 +205,9 @@ variable "database_config" {
   }
 }
 
+variable "deployment_bucket_name" {
+  description = "Private S3 bucket used for application deployment artifacts."
+  type        = string
+}
 
 

@@ -40,3 +40,6 @@ credentials
 bootstrap/github-oidc/backend.hcl
 bootstrap/github-oidc/terraform.tfvars
 bootstrap/github-oidc/*.tfplan
+bootstrap/github-oidc/.terraform/
+
+.vscode/

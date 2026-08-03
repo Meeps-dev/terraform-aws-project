@@ -78,6 +78,7 @@ module "rds" {
 module "app_s3" {
   source = "../../modules/app-s3"
 
-  bucket_name = local.application_bucket_name
-  tags        = local.common_tags
+  bucket_name            = local.application_bucket_name
+  deployment_bucket_name = var.deployment_bucket_name
+  tags                   = local.common_tags
 }
