@@ -1,6 +1,7 @@
 variable "project" {
   description = "Project name used for RDS resource naming."
   type        = string
+  default     = "meeps"
   nullable    = false
 
   validation {
@@ -12,12 +13,30 @@ variable "project" {
 variable "environment" {
   description = "Deployment environment."
   type        = string
+  default     = "dev"
   nullable    = false
 
   validation {
     condition     = contains(["dev", "staging", "prod"], var.environment)
     error_message = "Environment must be dev, staging, or prod."
   }
+}
+
+variable "database_identifier" {
+  description = "RDS instance identifier constructed by the root module."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]+$", var.database_identifier))
+    error_message = "Database identifier must begin with a lowercase letter and contain lowercase letters, numbers, or hyphens."
+  }
+}
+
+variable "database_tags" {
+  description = "Final tags for the RDS instance, constructed by the root module."
+  type        = map(string)
+  nullable    = false
 }
 
 variable "private_database_subnet_ids" {
@@ -64,6 +83,18 @@ variable "database_config" {
   })
 
   nullable = false
+
+  default = {
+    engine              = "postgres"
+    engine_version      = "16"
+    instance_class      = "db.t3.micro"
+    allocated_storage   = 20
+    database_name       = "meepsapp"
+    username            = "meepsadmin"
+    port                = 5432
+    multi_az            = false
+    deletion_protection = false
+  }
 
   validation {
     condition = (

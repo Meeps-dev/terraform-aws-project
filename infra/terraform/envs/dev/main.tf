@@ -3,13 +3,14 @@
 module "vpc" {
   source = "../../modules/vpc"
 
-  project = var.project
+  project = "meeps"
 
-  vpc_cidr                 = var.vpc_cidr
-  public_subnet_cidrs      = var.public_subnet_cidrs
-  private_app_subnet_cidrs = var.private_app_subnet_cidrs
-  private_db_subnet_cidrs  = var.private_db_subnet_cidrs
-  enable_nat_gateway       = var.enable_nat_gateway
+  vpc_cidr                 = "10.0.0.0/16"
+  public_subnet_cidrs      = ["10.0.1.0/24", "10.0.2.0/24"]
+  private_app_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24"]
+  private_db_subnet_cidrs  = ["10.0.21.0/24", "10.0.22.0/24"]
+  availability_zones       = data.aws_availability_zones.available.names
+  enable_nat_gateway       = false
 }
 
 ### Security
@@ -17,12 +18,12 @@ module "vpc" {
 module "security" {
   source = "../../modules/security"
 
-  project = var.project
+  project = "meeps"
   vpc_id  = module.vpc.vpc_id
 
-  alb_ingress_cidrs = var.alb_ingress_cidrs
-  application_port  = var.application_port
-  database_port     = var.database_config.port
+  alb_ingress_cidrs = ["0.0.0.0/0"]
+  application_port  = 8080
+  database_port     = 5432
 }
 
 ### Load Balancing
@@ -30,11 +31,13 @@ module "security" {
 module "alb" {
   source = "../../modules/alb"
 
-  project               = var.project
+  project               = "meeps"
   vpc_id                = module.vpc.vpc_id
   public_subnet_ids     = module.vpc.public_subnet_ids
   alb_security_group_id = module.security.alb_security_group_id
-  application_port      = var.application_port
+
+  application_port  = 8080
+  health_check_path = "/health"
 }
 
 ### Compute
@@ -42,20 +45,22 @@ module "alb" {
 module "compute" {
   source = "../../modules/compute"
 
-  project     = var.project
-  environment = var.environment
+  project     = "meeps"
+  environment = "dev"
 
   ami_id        = data.aws_ami.amazon_linux_2023.id
-  instance_type = var.ec2_config.instance_type
+  instance_type = "t3.micro"
+
+  ssm_managed_policy_arn = local.ssm_managed_instance_core_policy_arn
 
   private_subnet_id             = module.vpc.private_application_subnet_ids[0]
   application_security_group_id = module.security.application_security_group_id
   target_group_arn              = module.alb.target_group_arn
-  application_port              = var.application_port
 
-  root_volume_size    = var.ec2_config.root_volume_size
-  root_volume_type    = var.ec2_config.root_volume_type
-  detailed_monitoring = var.ec2_config.detailed_monitoring
+  application_port    = 8080
+  root_volume_size    = 8
+  root_volume_type    = "gp3"
+  detailed_monitoring = false
 }
 
 ### Database
@@ -63,14 +68,29 @@ module "compute" {
 module "rds" {
   source = "../../modules/rds"
 
-  project     = var.project
-  environment = var.environment
+  project     = "meeps"
+  environment = "dev"
+
+  database_identifier = local.database_identifier
+  database_tags       = local.database_tags
 
   private_database_subnet_ids = module.vpc.private_database_subnet_ids
   rds_security_group_id       = module.security.rds_security_group_id
-  database_config             = var.database_config
 
-  tags = local.common_tags
+  database_config = {
+    engine              = "postgres"
+    engine_version      = "16"
+    instance_class      = "db.t3.micro"
+    allocated_storage   = 20
+    database_name       = "meepsapp"
+    username            = "meepsadmin"
+    port                = 5432
+    multi_az            = false
+    deletion_protection = false
+  }
+
+  backup_retention_period = 1
+  tags                    = local.common_tags
 }
 
 ### Application Storage
@@ -79,6 +99,7 @@ module "app_s3" {
   source = "../../modules/app-s3"
 
   bucket_name            = local.application_bucket_name
-  deployment_bucket_name = var.deployment_bucket_name
+  deployment_bucket_name = local.deployment_bucket_name
+  force_destroy          = false
   tags                   = local.common_tags
 }

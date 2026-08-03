@@ -76,6 +76,10 @@ NAT Gateway creation is optional and remains disabled when private-subnet outbou
 
 ## Terraform modules
 
+The development root module calls every child from `envs/dev/main.tf` and supplies each module's required configuration explicitly. Each child declares and validates its own inputs in its own `variables.tf`, then consumes those inputs in its own `main.tf`. All environment data lookups and derived local expressions are centralized in the root `envs/dev/data.tf` and `envs/dev/locals.tf` files.
+
+Cross-module values such as VPC IDs, subnet IDs, security-group IDs, and the target-group ARN are wired through child-module outputs. Resource settings are written directly in the appropriate module block rather than being proxied through duplicate variables in `envs/dev/variables.tf`.
+
 ### VPC module
 
 The `vpc` module manages:
@@ -248,6 +252,8 @@ cp terraform.tfvars.example terraform.tfvars
 ```
 
 Review `terraform.tfvars` before continuing.
+
+This file contains only root-level provider and tagging overrides. Resource-specific values live in the module blocks in `envs/dev/main.tf`, and each input is documented in the corresponding child module's `variables.tf`.
 
 Do not add AWS credentials or database passwords to this file.
 

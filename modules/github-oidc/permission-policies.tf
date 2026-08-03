@@ -1,3 +1,4 @@
+# Permission policies attached to the GitHub Actions IAM roles.
 data "aws_iam_policy_document" "plan_state" {
   statement {
     sid       = "ListStatePath"

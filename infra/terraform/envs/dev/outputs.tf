@@ -48,3 +48,13 @@ output "application_s3_bucket_arn" {
   description = "ARN of the private application S3 bucket."
   value       = module.app_s3.bucket_arn
 }
+
+output "deployment_s3_bucket_name" {
+  description = "Name of the private application deployment bucket."
+  value       = module.app_s3.deployment_bucket_name
+}
+
+output "deployment_s3_bucket_arn" {
+  description = "ARN of the private application deployment bucket."
+  value       = module.app_s3.deployment_bucket_arn
+}

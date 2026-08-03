@@ -1,6 +1,7 @@
 variable "project" {
   description = "Project name used for resource naming."
   type        = string
+  default     = "meeps"
   nullable    = false
 
   validation {
@@ -13,6 +14,11 @@ variable "vpc_id" {
   description = "VPC in which the target group will be created."
   type        = string
   nullable    = false
+
+  validation {
+    condition     = startswith(var.vpc_id, "vpc-")
+    error_message = "VPC ID must begin with vpc-."
+  }
 }
 
 variable "public_subnet_ids" {
@@ -35,6 +41,7 @@ variable "alb_security_group_id" {
 variable "application_port" {
   description = "Port used by the backend application and target group."
   type        = number
+  default     = 8080
   nullable    = false
 
   validation {

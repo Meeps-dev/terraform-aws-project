@@ -1,15 +1,3 @@
-locals {
-  database_identifier = "${var.project}-${var.environment}-postgres"
-
-  database_tags = merge(
-    var.tags,
-    {
-      Name = "${var.project}-${var.environment}-postgres"
-      Tier = "database"
-    }
-  )
-}
-
 resource "aws_db_subnet_group" "main" {
   name        = "${var.project}-${var.environment}-database-subnets"
   description = "Private database subnets for ${var.project}-${var.environment}"
@@ -25,7 +13,7 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier = local.database_identifier
+  identifier = var.database_identifier
 
   engine         = var.database_config.engine
   engine_version = var.database_config.engine_version
@@ -63,5 +51,5 @@ resource "aws_db_instance" "main" {
   # Disabled for this cost-conscious development lab.
   performance_insights_enabled = false
 
-  tags = local.database_tags
+  tags = var.database_tags
 }

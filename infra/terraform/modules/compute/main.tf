@@ -1,5 +1,3 @@
-data "aws_partition" "current" {}
-
 resource "aws_iam_role" "backend" {
   name_prefix = "${var.project}-${var.environment}-backend-"
 
@@ -25,7 +23,7 @@ resource "aws_iam_role" "backend" {
 resource "aws_iam_role_policy_attachment" "ssm" {
   role = aws_iam_role.backend.name
 
-  policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  policy_arn = var.ssm_managed_policy_arn
 }
 
 resource "aws_iam_instance_profile" "backend" {

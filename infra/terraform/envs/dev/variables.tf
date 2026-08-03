@@ -1,23 +1,29 @@
 variable "aws_region" {
-  description = "AWS Region used for Week 10 infrastructure."
+  description = "AWS Region for the development environment."
   type        = string
   default     = "eu-west-2"
   nullable    = false
 
   validation {
     condition     = var.aws_region == "eu-west-2"
-    error_message = "The approved AWS Region is eu-west-2."
+    error_message = "The approved development Region is eu-west-2."
   }
 }
 
 variable "project" {
-  description = "Project name"
+  description = "Project tag applied to all resources by the root provider."
   type        = string
+  default     = "meeps"
+  nullable    = false
+
+  validation {
+    condition     = length(trimspace(var.project)) > 0
+    error_message = "Project cannot be empty."
+  }
 }
 
-
 variable "owner" {
-  description = "Person responsible for the infrastructure."
+  description = "Owner tag applied to all resources by the root provider."
   type        = string
   default     = "meeps"
   nullable    = false
@@ -28,186 +34,14 @@ variable "owner" {
   }
 }
 
-
 variable "environment" {
-  description = "Deployment environment."
+  description = "Environment tag applied to all resources by the root provider."
   type        = string
   default     = "dev"
   nullable    = false
 
   validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, staging, or prod."
+    condition     = var.environment == "dev"
+    error_message = "This root module represents only the dev environment."
   }
 }
-
-
-variable "vpc_cidr" {
-  description = "IPv4 CIDR block assigned to the VPC."
-  type        = string
-  default     = "10.0.0.0/16"
-  nullable    = false
-
-  validation {
-    condition     = can(cidrhost(var.vpc_cidr, 0))
-    error_message = "VPC CIDR must be a valid CIDR block."
-  }
-}
-
-
-variable "public_subnet_cidrs" {
-  description = "Public subnet CIDR ranges"
-  type        = list(string)
-}
-
-
-variable "private_app_subnet_cidrs" {
-  description = "Private application subnet CIDR ranges"
-  type        = list(string)
-}
-
-
-variable "private_db_subnet_cidrs" {
-  description = "Private database subnet CIDR ranges"
-  type        = list(string)
-}
-
-variable "enable_nat_gateway" {
-  description = "Whether to create a NAT Gateway for private application subnet internet access."
-  type        = bool
-  default     = false
-  nullable    = false
-}
-
-variable "application_port" {
-  description = "TCP port exposed by the application to the ALB."
-  type        = number
-  default     = 8080
-  nullable    = false
-
-  validation {
-    condition = (
-      var.application_port >= 1 &&
-      var.application_port <= 65535 &&
-      var.application_port != 22
-    )
-    error_message = "Application port must be between 1 and 65535 and must not be SSH port 22."
-  }
-}
-
-variable "alb_ingress_cidrs" {
-  description = "Approved IPv4 CIDR blocks allowed to reach the public ALB."
-  type        = set(string)
-  nullable    = false
-
-  validation {
-    condition = (
-      length(var.alb_ingress_cidrs) > 0 &&
-      alltrue([
-        for cidr in var.alb_ingress_cidrs : can(cidrnetmask(cidr))
-      ])
-    )
-    error_message = "Provide at least one valid IPv4 CIDR block for ALB access."
-  }
-}
-
-variable "ec2_config" {
-  description = "Configuration for the private backend EC2 instance."
-  type = object({
-    instance_type       = string
-    root_volume_size    = number
-    root_volume_type    = string
-    detailed_monitoring = bool
-  })
-
-  default = {
-    instance_type       = "t3.micro"
-    root_volume_size    = 8
-    root_volume_type    = "gp3"
-    detailed_monitoring = false
-  }
-
-  validation {
-    condition     = contains(["t3.micro", "t3.small"], var.ec2_config.instance_type)
-    error_message = "Approved EC2 types are t3.micro and t3.small."
-  }
-
-  validation {
-    condition = (
-      var.ec2_config.root_volume_size >= 8 &&
-      var.ec2_config.root_volume_size <= 30
-    )
-    error_message = "EC2 root volume size must be between 8 and 30 GiB."
-  }
-
-  validation {
-    condition     = var.ec2_config.root_volume_type == "gp3"
-    error_message = "The approved EBS volume type is gp3."
-  }
-}
-
-
-variable "database_config" {
-  description = "Configuration for the private PostgreSQL database."
-  type = object({
-    engine              = string
-    engine_version      = string
-    instance_class      = string
-    allocated_storage   = number
-    database_name       = string
-    username            = string
-    port                = number
-    multi_az            = bool
-    deletion_protection = bool
-  })
-
-  default = {
-    engine              = "postgres"
-    engine_version      = "16"
-    instance_class      = "db.t3.micro"
-    allocated_storage   = 20
-    database_name       = "meepsapp"
-    username            = "meepsadmin"
-    port                = 5432
-    multi_az            = false
-    deletion_protection = false
-  }
-
-  validation {
-    condition     = var.database_config.engine == "postgres"
-    error_message = "The approved database engine is postgres."
-  }
-
-  validation {
-    condition = contains(
-      ["db.t3.micro", "db.t4g.micro"],
-      var.database_config.instance_class
-    )
-    error_message = "Use an approved low-cost RDS instance class."
-  }
-
-  validation {
-    condition = (
-      var.database_config.allocated_storage >= 20 &&
-      var.database_config.allocated_storage <= 100
-    )
-    error_message = "Database storage must be between 20 and 100 GiB."
-  }
-
-  validation {
-    condition     = var.database_config.port == 5432
-    error_message = "PostgreSQL must use port 5432."
-  }
-
-  validation {
-    condition     = can(regex("^[A-Za-z][A-Za-z0-9_]*$", var.database_config.database_name))
-    error_message = "Database name must begin with a letter and contain only letters, numbers, or underscores."
-  }
-}
-
-variable "deployment_bucket_name" {
-  description = "Private S3 bucket used for application deployment artifacts."
-  type        = string
-}
-
-
