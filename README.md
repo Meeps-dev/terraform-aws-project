@@ -192,8 +192,13 @@ It must remain available until the application environment has been destroyed an
 │   ├── cost-security-notes
 │   ├── screenshots
 │   └── troubleshooting
-├── infra
+├── infrastructure
+│   ├── bootstrap
+│   │   └── github-oidc
+│   ├── modules
+│   │   └── github-oidc
 │   └── terraform
+│       ├── bootstrap
 │       ├── envs
 │       │   └── dev
 │       └── modules
@@ -247,7 +252,7 @@ aws sts get-caller-identity \
 ### 1. Configure the environment
 
 ```bash
-cd infra/terraform/envs/dev
+cd infrastructure/terraform/envs/dev
 cp terraform.tfvars.example terraform.tfvars
 ```
 
@@ -318,7 +323,7 @@ Configuration-only outputs were removed during the final cleanup because they re
 ## Validation workflow
 
 ```bash
-cd infra/terraform
+cd infrastructure/terraform
 terraform fmt -check -recursive
 
 cd envs/dev
@@ -398,7 +403,7 @@ See [the cost and security notes](docs/cost-security-notes/README.md) before dep
 Capture the required evidence and review a saved destroy plan before deleting anything.
 
 ```bash
-cd infra/terraform/envs/dev
+cd infrastructure/terraform/envs/dev
 
 umask 077
 
