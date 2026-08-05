@@ -44,6 +44,19 @@ resource "aws_iam_role_policy_attachment" "apply_read" {
   policy_arn = aws_iam_policy.terraform_read.arn
 }
 
+resource "aws_iam_policy" "terraform_apply_changes" {
+  name        = "github-terraform-apply-changes-policy"
+  description = "Service-scoped mutation permissions for the Meeps development Terraform stack."
+  policy      = data.aws_iam_policy_document.terraform_apply_changes.json
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "terraform_apply_changes" {
+  role       = aws_iam_role.apply.name
+  policy_arn = aws_iam_policy.terraform_apply_changes.arn
+}
+
 resource "aws_iam_policy" "app_deploy" {
   name        = "github-app-deploy-policy"
   description = "Upload application artifacts and deploy to approved EC2 instances through SSM."
