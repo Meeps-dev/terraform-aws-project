@@ -1,0 +1,484 @@
+name: Day 75 - Protected Terraform Apply
+
+run-name: >-
+  Terraform Apply |
+  ${{ github.ref_name }} |
+  ${{ github.sha }} |
+  ${{ inputs.change_reason }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type APPLY-DEV to continue"
+        required: true
+        type: string
+
+      change_reason:
+        description: "Reason for this infrastructure deployment"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Apply and destroy workflows must use the same concurrency group.
+# Queue deployments instead of cancelling a running state operation.
+concurrency:
+  group: terraform-dev
+  queue: max
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+  TF_WORKING_DIR: "infrastructure/terraform/envs/dev"
+
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+
+  TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+
+jobs:
+  preflight:
+    name: Validate apply request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Require main branch and explicit confirmation
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+          CHANGE_REASON: ${{ inputs.change_reason }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]
+          then
+            echo "Protected Terraform apply can run only from main."
+            echo "Selected ref: ${GITHUB_REF}"
+            exit 1
+          fi
+
+          if [[ "${CONFIRMATION}" != "APPLY-DEV" ]]
+          then
+            echo "Confirmation must be exactly: APPLY-DEV"
+            exit 1
+          fi
+
+          if [[ -z "${CHANGE_REASON}" ]]
+          then
+            echo "A deployment reason is required."
+            exit 1
+          fi
+
+          echo "Branch check passed."
+          echo "Confirmation check passed."
+          echo "Commit: ${GITHUB_SHA}"
+
+  preapproval-plan:
+    name: Review plan before approval
+    needs:
+      - preflight
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          checked_out_sha="$(git rev-parse HEAD)"
+
+          echo "Requested SHA:   ${GITHUB_SHA}"
+          echo "Checked-out SHA: ${checked_out_sha}"
+
+          test "${checked_out_sha}" = "${GITHUB_SHA}"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Configure AWS plan credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+
+      - name: Verify plan identity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          identity_arn="$(
+            aws sts get-caller-identity \
+              --query Arn \
+              --output text
+          )"
+
+          echo "Assumed identity: ${identity_arn}"
+
+          [[ "${identity_arn}" == *":assumed-role/github-plan-role/"* ]]
+
+      - name: Initialize remote backend
+        shell: bash
+        run: |
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            init \
+            -input=false \
+            -lockfile=readonly \
+            -no-color
+
+      - name: Validate Terraform
+        run: |
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            validate \
+            -no-color
+
+      - name: Create safe pre-approval plan summary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          plan_file="${RUNNER_TEMP}/day75-preview.tfplan"
+          plan_log="${RUNNER_TEMP}/day75-preview.log"
+          plan_json="${RUNNER_TEMP}/day75-preview.json"
+          change_list="${RUNNER_TEMP}/day75-preview-changes.txt"
+
+          set +e
+
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            plan \
+            -input=false \
+            -no-color \
+            -lock-timeout=5m \
+            -out="${plan_file}" \
+            > "${plan_log}" 2>&1
+
+          plan_exit_code=$?
+
+          set -e
+
+          if [[ "${plan_exit_code}" -ne 0 ]]
+          then
+            echo "Terraform pre-approval plan failed."
+            tail -n 100 "${plan_log}"
+            exit "${plan_exit_code}"
+          fi
+
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            show \
+            -json \
+            "${plan_file}" \
+            > "${plan_json}"
+
+          create_count="$(
+            jq '
+              [
+                .resource_changes[]?
+                | select(.change.actions | index("create"))
+              ]
+              | length
+            ' "${plan_json}"
+          )"
+
+          update_count="$(
+            jq '
+              [
+                .resource_changes[]?
+                | select(.change.actions | index("update"))
+              ]
+              | length
+            ' "${plan_json}"
+          )"
+
+          delete_count="$(
+            jq '
+              [
+                .resource_changes[]?
+                | select(.change.actions | index("delete"))
+              ]
+              | length
+            ' "${plan_json}"
+          )"
+
+          jq -r '
+            .resource_changes[]?
+            | select(.change.actions != ["no-op"])
+            | "- \(.change.actions | join("/")) \(.address)"
+          ' "${plan_json}" > "${change_list}"
+
+          {
+            echo "## Pre-Approval Terraform Plan"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- State key: \`${TF_STATE_KEY}\`"
+            echo "- Create actions: ${create_count}"
+            echo "- Update actions: ${update_count}"
+            echo "- Delete actions: ${delete_count}"
+            echo
+            echo "### Planned resource actions"
+            echo
+            if [[ -s "${change_list}" ]]
+            then
+              cat "${change_list}"
+            else
+              echo "- No infrastructure changes"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          if [[ "${delete_count}" -gt 0 ]]
+          then
+            echo "Destructive changes are blocked in the normal apply workflow."
+            echo "Use the separate protected destroy workflow when teardown is intentional."
+            exit 1
+          fi
+
+          echo "Pre-approval plan completed."
+          echo "Review the workflow summary before approving the dev environment."
+
+      - name: Remove temporary plan files
+        if: always()
+        shell: bash
+        run: |
+          rm -f \
+            "${RUNNER_TEMP}/day75-preview.tfplan" \
+            "${RUNNER_TEMP}/day75-preview.log" \
+            "${RUNNER_TEMP}/day75-preview.json" \
+            "${RUNNER_TEMP}/day75-preview-changes.txt"
+
+  terraform-apply:
+    name: Approved Terraform apply
+
+    needs:
+      - preapproval-plan
+
+    environment:
+      name: dev
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout exact approved commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact approved commit
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          checked_out_sha="$(git rev-parse HEAD)"
+
+          echo "Approved SHA:    ${GITHUB_SHA}"
+          echo "Checked-out SHA: ${checked_out_sha}"
+
+          test "${checked_out_sha}" = "${GITHUB_SHA}"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Validate protected environment variables
+        shell: bash
+        env:
+          APPLY_ROLE_ARN: ${{ vars.AWS_APPLY_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+
+          : "${APPLY_ROLE_ARN:?Missing AWS_APPLY_ROLE_ARN in dev environment}"
+          : "${AWS_REGION:?Missing AWS_REGION}"
+          : "${AWS_ACCOUNT_ID:?Missing AWS_ACCOUNT_ID}"
+          : "${TF_STATE_BUCKET:?Missing TF_STATE_BUCKET}"
+          : "${TF_STATE_KEY:?Missing TF_STATE_KEY}"
+
+          echo "Protected environment variables are available."
+
+      - name: Configure AWS apply credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-apply-${{ github.run_id }}-${{ github.run_attempt }}
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+
+      - name: Verify apply identity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws sts get-caller-identity
+
+          identity_arn="$(
+            aws sts get-caller-identity \
+              --query Arn \
+              --output text
+          )"
+
+          echo "Assumed identity: ${identity_arn}"
+
+          if [[ "${identity_arn}" != *":assumed-role/github-apply-role/"* ]]
+          then
+            echo "Expected github-apply-role."
+            exit 1
+          fi
+
+      - name: Verify backend and native lock configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          backend_file="${TF_WORKING_DIR}/backend.tf"
+
+          grep -F "\"${TF_STATE_BUCKET}\"" "${backend_file}"
+          grep -F "\"${TF_STATE_KEY}\"" "${backend_file}"
+
+          grep -Eq \
+            'use_lockfile[[:space:]]*=[[:space:]]*true' \
+            "${backend_file}"
+
+          echo "State: s3://${TF_STATE_BUCKET}/${TF_STATE_KEY}"
+          echo "Lock:  s3://${TF_STATE_BUCKET}/${TF_STATE_KEY}.tflock"
+
+      - name: Initialize S3 backend
+        run: |
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            init \
+            -input=false \
+            -lockfile=readonly \
+            -no-color
+
+      - name: Validate initialized configuration
+        run: |
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            validate \
+            -no-color
+
+      - name: Create exact saved apply plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          plan_file="${RUNNER_TEMP}/day75-apply.tfplan"
+          plan_json="${RUNNER_TEMP}/day75-apply.json"
+
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            plan \
+            -input=false \
+            -no-color \
+            -lock-timeout=5m \
+            -out="${plan_file}"
+
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            show \
+            -json \
+            "${plan_file}" \
+            > "${plan_json}"
+
+          delete_count="$(
+            jq '
+              [
+                .resource_changes[]?
+                | select(.change.actions | index("delete"))
+              ]
+              | length
+            ' "${plan_json}"
+          )"
+
+          if [[ "${delete_count}" -gt 0 ]]
+          then
+            echo "The approved apply plan contains ${delete_count} delete or replacement action(s)."
+            echo "Normal apply has been stopped."
+            exit 1
+          fi
+
+          echo "Saved plan passed the destructive-change check."
+
+      - name: Apply the saved plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            apply \
+            -input=false \
+            -no-color \
+            -lock-timeout=5m \
+            "${RUNNER_TEMP}/day75-apply.tfplan"
+
+      - name: Capture non-sensitive Terraform outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Terraform outputs:"
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            output \
+            -no-color
+
+      - name: Record deployment summary
+        if: success()
+        shell: bash
+        env:
+          CHANGE_REASON: ${{ inputs.change_reason }}
+        run: |
+          {
+            echo "## Terraform Apply Completed"
+            echo
+            echo "- Environment: \`dev\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Workflow run: \`${GITHUB_RUN_ID}\`"
+            echo "- State key: \`${TF_STATE_KEY}\`"
+            echo "- Reason: ${CHANGE_REASON}"
+            echo "- AWS role: \`github-apply-role\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Remove sensitive temporary files
+        if: always()
+        shell: bash
+        run: |
+          rm -f \
+            "${RUNNER_TEMP}/day75-apply.tfplan" \
+            "${RUNNER_TEMP}/day75-apply.json"

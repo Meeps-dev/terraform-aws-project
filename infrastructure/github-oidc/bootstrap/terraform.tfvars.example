@@ -16,6 +16,7 @@ deployment_bucket_name = "meeps-users-posts-api-artifacts-256748318717-eu-west-2
 application_name       = "users-posts-api"
 
 managed_s3_bucket_arns = [
+  "arn:aws:s3:::meeps-dev-application-256748318717",
   "arn:aws:s3:::meeps-users-posts-api-artifacts-256748318717-eu-west-2",
 ]
 

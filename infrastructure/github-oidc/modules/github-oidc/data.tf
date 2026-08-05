@@ -255,6 +255,196 @@ data "aws_iam_policy_document" "terraform_read" {
   }
 }
 
+data "aws_iam_policy_document" "terraform_apply_changes" {
+  statement {
+    sid    = "ManageRegionalVpcAndCompute"
+    effect = "Allow"
+
+    actions = [
+      "ec2:AllocateAddress",
+      "ec2:AssociateAddress",
+      "ec2:AssociateRouteTable",
+      "ec2:AttachInternetGateway",
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:CreateInternetGateway",
+      "ec2:CreateNatGateway",
+      "ec2:CreateRoute",
+      "ec2:CreateRouteTable",
+      "ec2:CreateSecurityGroup",
+      "ec2:CreateSubnet",
+      "ec2:CreateTags",
+      "ec2:CreateVpc",
+      "ec2:DeleteInternetGateway",
+      "ec2:DeleteNatGateway",
+      "ec2:DeleteRoute",
+      "ec2:DeleteRouteTable",
+      "ec2:DeleteSecurityGroup",
+      "ec2:DeleteSubnet",
+      "ec2:DeleteTags",
+      "ec2:DeleteVpc",
+      "ec2:DetachInternetGateway",
+      "ec2:DisassociateAddress",
+      "ec2:DisassociateRouteTable",
+      "ec2:ModifyInstanceAttribute",
+      "ec2:ModifySecurityGroupRules",
+      "ec2:ModifySubnetAttribute",
+      "ec2:ModifyVpcAttribute",
+      "ec2:ReleaseAddress",
+      "ec2:ReplaceRoute",
+      "ec2:ReplaceRouteTableAssociation",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RunInstances",
+      "ec2:StartInstances",
+      "ec2:StopInstances",
+      "ec2:TerminateInstances",
+      "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
+      "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
+    ]
+
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [data.aws_region.current.region]
+    }
+  }
+
+  statement {
+    sid    = "ManageRegionalLoadBalancing"
+    effect = "Allow"
+
+    actions = [
+      "elasticloadbalancing:AddTags",
+      "elasticloadbalancing:CreateListener",
+      "elasticloadbalancing:CreateLoadBalancer",
+      "elasticloadbalancing:CreateRule",
+      "elasticloadbalancing:CreateTargetGroup",
+      "elasticloadbalancing:DeleteListener",
+      "elasticloadbalancing:DeleteLoadBalancer",
+      "elasticloadbalancing:DeleteRule",
+      "elasticloadbalancing:DeleteTargetGroup",
+      "elasticloadbalancing:DeregisterTargets",
+      "elasticloadbalancing:ModifyListener",
+      "elasticloadbalancing:ModifyLoadBalancerAttributes",
+      "elasticloadbalancing:ModifyRule",
+      "elasticloadbalancing:ModifyTargetGroup",
+      "elasticloadbalancing:ModifyTargetGroupAttributes",
+      "elasticloadbalancing:RegisterTargets",
+      "elasticloadbalancing:RemoveTags",
+      "elasticloadbalancing:SetIpAddressType",
+      "elasticloadbalancing:SetRulePriorities",
+      "elasticloadbalancing:SetSecurityGroups",
+      "elasticloadbalancing:SetSubnets",
+    ]
+
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [data.aws_region.current.region]
+    }
+  }
+
+  statement {
+    sid    = "ManageRegionalRDS"
+    effect = "Allow"
+
+    actions = [
+      "rds:AddTagsToResource",
+      "rds:CreateDBInstance",
+      "rds:CreateDBParameterGroup",
+      "rds:CreateDBSnapshot",
+      "rds:CreateDBSubnetGroup",
+      "rds:DeleteDBInstance",
+      "rds:DeleteDBParameterGroup",
+      "rds:DeleteDBSnapshot",
+      "rds:DeleteDBSubnetGroup",
+      "rds:ModifyDBInstance",
+      "rds:ModifyDBParameterGroup",
+      "rds:ModifyDBSubnetGroup",
+      "rds:RebootDBInstance",
+      "rds:RemoveTagsFromResource",
+      "rds:ResetDBParameterGroup",
+      "rds:StartDBInstance",
+      "rds:StopDBInstance",
+    ]
+
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [data.aws_region.current.region]
+    }
+  }
+
+  statement {
+    sid    = "ManageApprovedS3Buckets"
+    effect = "Allow"
+
+    actions = [
+      "s3:CreateBucket",
+      "s3:DeleteBucket",
+      "s3:DeleteBucketEncryption",
+      "s3:DeleteBucketOwnershipControls",
+      "s3:DeleteBucketPolicy",
+      "s3:DeleteBucketPublicAccessBlock",
+      "s3:DeleteBucketTagging",
+      "s3:DeleteBucketWebsite",
+      "s3:DeleteLifecycleConfiguration",
+      "s3:PutBucketEncryption",
+      "s3:PutBucketOwnershipControls",
+      "s3:PutBucketPolicy",
+      "s3:PutBucketPublicAccessBlock",
+      "s3:PutBucketTagging",
+      "s3:PutBucketVersioning",
+      "s3:PutBucketWebsite",
+      "s3:PutLifecycleConfiguration",
+    ]
+
+    resources = var.managed_s3_bucket_arns
+  }
+
+  statement {
+    sid    = "ManageObjectsInApprovedS3Buckets"
+    effect = "Allow"
+
+    actions = [
+      "s3:DeleteObject",
+      "s3:PutObject",
+      "s3:PutObjectTagging",
+    ]
+
+    resources = [
+      for bucket_arn in var.managed_s3_bucket_arns :
+      "${bucket_arn}/*"
+    ]
+  }
+
+  statement {
+    sid    = "PassProjectEC2Roles"
+    effect = "Allow"
+
+    actions = [
+      "iam:PassRole",
+    ]
+
+    resources = [
+      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/meeps-*",
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
 data "aws_iam_policy_document" "app_deploy" {
   statement {
     sid       = "ReadDeploymentBucketLocation"
