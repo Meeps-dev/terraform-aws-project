@@ -1,0 +1,321 @@
+name: Day 74 - Terraform CI
+
+run-name: >-
+  Terraform CI |
+  ${{ github.event_name }} |
+  ${{ github.ref_name }} |
+  ${{ github.sha }}
+
+on:
+  pull_request:
+    branches:
+      - main
+
+    paths:
+      - "infrastructure/terraform/envs/**"
+      - "infrastructure/terraform/modules/**"
+      - "infrastructure/terraform/bootstrap/**"
+      - "infrastructure/github-oidc/**"
+      - "infrastructure/**/*.tf"
+      - "infrastructure/**/*.tfvars.example"
+      - "**/.terraform.lock.hcl"
+      - ".github/workflows/terraform-*.yml"
+
+  push:
+    branches:
+      - "feature/**"
+
+    paths:
+      - "infrastructure/terraform/envs/**"
+      - "infrastructure/terraform/modules/**"
+      - "infrastructure/terraform/bootstrap/**"
+      - "infrastructure/github-oidc/**"
+      - "infrastructure/**/*.tf"
+      - "infrastructure/**/*.tfvars.example"
+      - "**/.terraform.lock.hcl"
+      - ".github/workflows/terraform-*.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: >-
+    terraform-ci-${{
+      github.event.pull_request.number || github.ref_name
+    }}
+  cancel-in-progress: true
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+  TF_WORKING_DIR: "infrastructure/terraform/envs/dev"
+  TF_OIDC_ROOT: "infrastructure/github-oidc/bootstrap"
+
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  AWS_PLAN_ROLE_ARN: ${{ vars.AWS_PLAN_ROLE_ARN }}
+
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+
+  TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+
+jobs:
+  static-checks:
+    name: Format and validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Display Terraform version
+        run: terraform version
+
+      - name: Check all Terraform formatting
+        run: terraform fmt -check -recursive infrastructure
+
+      - name: Initialize dev root without backend
+        run: |
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            init \
+            -backend=false \
+            -input=false \
+            -lockfile=readonly \
+            -no-color
+
+      - name: Validate dev configuration
+        run: |
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            validate \
+            -no-color
+
+      - name: Initialize OIDC root without backend
+        run: |
+          terraform \
+            -chdir="${TF_OIDC_ROOT}" \
+            init \
+            -backend=false \
+            -input=false \
+            -lockfile=readonly \
+            -no-color
+
+      - name: Validate OIDC configuration
+        run: |
+          terraform \
+            -chdir="${TF_OIDC_ROOT}" \
+            validate \
+            -no-color
+
+  terraform-plan:
+    name: Plan with AWS OIDC
+
+    needs:
+      - static-checks
+
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ vars.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Validate CI variables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          : "${AWS_REGION:?Missing AWS_REGION}"
+          : "${AWS_ACCOUNT_ID:?Missing AWS_ACCOUNT_ID}"
+          : "${AWS_PLAN_ROLE_ARN:?Missing AWS_PLAN_ROLE_ARN}"
+          : "${TF_STATE_BUCKET:?Missing TF_STATE_BUCKET}"
+          : "${TF_STATE_KEY:?Missing TF_STATE_KEY}"
+
+          echo "Terraform root: ${TF_WORKING_DIR}"
+          echo "State key: ${TF_STATE_KEY}"
+
+      - name: Configure temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+          role-session-name: >-
+            gha-plan-${{ github.run_id }}-${{ github.run_attempt }}
+
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+
+      - name: Verify assumed AWS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          identity_arn="$(
+            aws sts get-caller-identity \
+              --query Arn \
+              --output text
+          )"
+
+          echo "Assumed identity: ${identity_arn}"
+
+          if [[ "${identity_arn}" != *":assumed-role/github-plan-role/"* ]]
+          then
+            echo "Expected github-plan-role."
+            exit 1
+          fi
+
+      - name: Verify backend configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          backend_file="${TF_WORKING_DIR}/backend.tf"
+
+          grep -F "\"${TF_STATE_BUCKET}\"" "${backend_file}"
+          grep -F "\"${TF_STATE_KEY}\"" "${backend_file}"
+
+          grep -Eq \
+            'use_lockfile[[:space:]]*=[[:space:]]*true' \
+            "${backend_file}"
+
+          echo "Backend configuration matches repository variables."
+          echo "State: s3://${TF_STATE_BUCKET}/${TF_STATE_KEY}"
+          echo "Lock:  s3://${TF_STATE_BUCKET}/${TF_STATE_KEY}.tflock"
+
+      - name: Verify remote state access
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws s3api get-bucket-location \
+            --bucket "${TF_STATE_BUCKET}" \
+            >/dev/null
+
+          aws s3api head-object \
+            --bucket "${TF_STATE_BUCKET}" \
+            --key "${TF_STATE_KEY}" \
+            >/dev/null
+
+          echo "Remote state is accessible."
+
+      - name: Initialize S3 backend
+        run: |
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            init \
+            -input=false \
+            -lockfile=readonly \
+            -no-color
+
+      - name: Validate initialized configuration
+        run: |
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            validate \
+            -no-color
+
+      - name: Run speculative Terraform plan
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          plan_log="${RUNNER_TEMP}/day74-plan.txt"
+
+          set +e
+
+          terraform \
+            -chdir="${TF_WORKING_DIR}" \
+            plan \
+            -input=false \
+            -no-color \
+            -lock-timeout=5m \
+            -detailed-exitcode \
+            > "${plan_log}" 2>&1
+
+          plan_exit_code=$?
+
+          set -e
+
+          case "${plan_exit_code}" in
+            0)
+              plan_status="No infrastructure changes detected"
+              ;;
+
+            1)
+              echo "Terraform plan failed."
+              cat "${plan_log}"
+              exit 1
+              ;;
+
+            2)
+              plan_status="Infrastructure changes detected"
+              ;;
+
+            *)
+              echo "Unexpected Terraform exit code: ${plan_exit_code}"
+              cat "${plan_log}"
+              exit 1
+              ;;
+          esac
+
+          safe_summary="$(
+            grep -E \
+              '^(No changes\.|Plan:|Changes to Outputs:)' \
+              "${plan_log}" \
+              | tail -n 10 \
+              || true
+          )"
+
+          echo "${plan_status}"
+          echo "Detailed exit code: ${plan_exit_code}"
+          echo "${safe_summary}"
+
+          {
+            echo "## Terraform Plan"
+            echo
+            echo "- Status: ${plan_status}"
+            echo "- Exit code: ${plan_exit_code}"
+            echo "- Working directory: \`${TF_WORKING_DIR}\`"
+            echo "- State key: \`${TF_STATE_KEY}\`"
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo
+            echo "### Safe summary"
+            echo
+            echo '```text'
+            echo "${safe_summary}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          rm -f "${plan_log}"

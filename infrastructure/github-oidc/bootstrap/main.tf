@@ -1,5 +1,6 @@
 module "github_oidc" {
-  source = "../../modules/github-oidc"
+
+  source = "../modules/github-oidc"
 
   existing_oidc_provider_arn = var.existing_oidc_provider_arn
 

@@ -329,7 +329,7 @@ Production improvement:
 ### Destroy the application environment
 
 ```bash
-cd infra/terraform/envs/dev
+cd infrastructure/terraform/envs/dev
 
 umask 077
 

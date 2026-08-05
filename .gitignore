@@ -11,7 +11,6 @@ tfplan
 *.plan
 
 # Variable files that may contain secrets
-*.tfvars
 *.tfvars.json
 !*.tfvars.example
 
@@ -37,9 +36,23 @@ credentials
 .DS_Store
 
 # Local Terraform bootstrap configuration
-bootstrap/github-oidc/backend.hcl
-bootstrap/github-oidc/terraform.tfvars
-bootstrap/github-oidc/*.tfplan
-bootstrap/github-oidc/.terraform/
+infrastructure/github-oidc/bootstrap/terraform.tfvars
+infrastructure/github-oidc/bootstrap/*.tfplan
+infrastructure/github-oidc/bootstrap/.terraform/
 
 .vscode/
+
+# Terraform runtime files
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Local variable values
+**/terraform.tfvars
+!**/terraform.tfvars.example
+
+# Temporary files
+tmp/
