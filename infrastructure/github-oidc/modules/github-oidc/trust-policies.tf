@@ -1,3 +1,5 @@
+# Trust policies attached to the GitHub Actions IAM roles.
+
 data "aws_iam_policy_document" "plan_trust" {
   statement {
     sid     = "GitHubOIDCPlanAccess"
