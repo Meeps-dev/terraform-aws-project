@@ -174,6 +174,7 @@ data "aws_iam_policy_document" "terraform_read" {
       effect = "Allow"
 
       actions = [
+        "s3:GetAccelerateConfiguration",
         "s3:GetBucket*",
         "s3:GetEncryptionConfiguration",
         "s3:GetLifecycleConfiguration",
