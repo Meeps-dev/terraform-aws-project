@@ -208,6 +208,7 @@ data "aws_iam_policy_document" "terraform_read" {
       "iam:GetRole",
       "iam:GetRolePolicy",
       "iam:ListAttachedRolePolicies",
+      "iam:ListInstanceProfileTags",
       "iam:ListInstanceProfilesForRole",
       "iam:ListOpenIDConnectProviderTags",
       "iam:ListPolicyTags",
@@ -383,26 +384,39 @@ data "aws_iam_policy_document" "terraform_apply_changes" {
   }
 
   statement {
+    sid    = "CreateRDSManagedMasterSecrets"
+    effect = "Allow"
+
+    actions = [
+      "secretsmanager:CreateSecret",
+      "secretsmanager:TagResource",
+    ]
+
+    resources = [
+      "arn:${data.aws_partition.current.partition}:secretsmanager:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:secret:rds!*",
+    ]
+  }
+
+  statement {
     sid    = "ManageApprovedS3Buckets"
     effect = "Allow"
 
     actions = [
       "s3:CreateBucket",
       "s3:DeleteBucket",
-      "s3:DeleteBucketEncryption",
       "s3:DeleteBucketOwnershipControls",
       "s3:DeleteBucketPolicy",
       "s3:DeleteBucketPublicAccessBlock",
       "s3:DeleteBucketTagging",
       "s3:DeleteBucketWebsite",
       "s3:DeleteLifecycleConfiguration",
-      "s3:PutBucketEncryption",
       "s3:PutBucketOwnershipControls",
       "s3:PutBucketPolicy",
       "s3:PutBucketPublicAccessBlock",
       "s3:PutBucketTagging",
       "s3:PutBucketVersioning",
       "s3:PutBucketWebsite",
+      "s3:PutEncryptionConfiguration",
       "s3:PutLifecycleConfiguration",
     ]
 
@@ -422,6 +436,43 @@ data "aws_iam_policy_document" "terraform_apply_changes" {
     resources = [
       for bucket_arn in var.managed_s3_bucket_arns :
       "${bucket_arn}/*"
+    ]
+  }
+
+  statement {
+    sid    = "ManageProjectEC2Roles"
+    effect = "Allow"
+
+    actions = [
+      "iam:AttachRolePolicy",
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:DetachRolePolicy",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:UpdateAssumeRolePolicy",
+    ]
+
+    resources = [
+      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/meeps-*",
+    ]
+  }
+
+  statement {
+    sid    = "ManageProjectEC2InstanceProfiles"
+    effect = "Allow"
+
+    actions = [
+      "iam:AddRoleToInstanceProfile",
+      "iam:CreateInstanceProfile",
+      "iam:DeleteInstanceProfile",
+      "iam:RemoveRoleFromInstanceProfile",
+      "iam:TagInstanceProfile",
+      "iam:UntagInstanceProfile",
+    ]
+
+    resources = [
+      "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:instance-profile/meeps-*",
     ]
   }
 
