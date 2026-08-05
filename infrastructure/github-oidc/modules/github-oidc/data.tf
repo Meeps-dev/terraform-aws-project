@@ -58,7 +58,8 @@ data "aws_iam_policy_document" "apply_trust" {
       variable = "token.actions.githubusercontent.com:sub"
 
       values = [
-        "${var.terraform_subject_prefix}:environment:${var.github_environment}",
+        "${var.terraform_subject_prefix}:environment:dev",
+        "${var.terraform_subject_prefix}:environment:dev-destroy",
       ]
     }
   }
