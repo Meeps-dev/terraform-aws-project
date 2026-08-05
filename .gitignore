@@ -11,7 +11,6 @@ tfplan
 *.plan
 
 # Variable files that may contain secrets
-*.tfvars
 *.tfvars.json
 !*.tfvars.example
 
