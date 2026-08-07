@@ -3,14 +3,13 @@
 module "vpc" {
   source = "../../modules/vpc"
 
-  project = "meeps"
+  project = var.project
 
   vpc_cidr                 = "10.0.0.0/16"
   public_subnet_cidrs      = ["10.0.1.0/24", "10.0.2.0/24"]
   private_app_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24"]
   private_db_subnet_cidrs  = ["10.0.21.0/24", "10.0.22.0/24"]
-  availability_zones       = data.aws_availability_zones.available.names
-  enable_nat_gateway       = false
+  enable_nat_gateway       = true
 }
 
 ### Security
@@ -18,7 +17,7 @@ module "vpc" {
 module "security" {
   source = "../../modules/security"
 
-  project = "meeps"
+  project = var.project
   vpc_id  = module.vpc.vpc_id
 
   alb_ingress_cidrs = ["0.0.0.0/0"]
@@ -31,7 +30,7 @@ module "security" {
 module "alb" {
   source = "../../modules/alb"
 
-  project               = "meeps"
+  project               = var.project
   vpc_id                = module.vpc.vpc_id
   public_subnet_ids     = module.vpc.public_subnet_ids
   alb_security_group_id = module.security.alb_security_group_id
@@ -45,13 +44,14 @@ module "alb" {
 module "compute" {
   source = "../../modules/compute"
 
-  project     = "meeps"
-  environment = "dev"
+  project     = var.project
+  environment = var.environment
 
-  ami_id        = data.aws_ami.amazon_linux_2023.id
-  instance_type = "t3.micro"
+  instance_type    = "t3.micro"
+  application_name = "users-posts-api"
 
-  ssm_managed_policy_arn = local.ssm_managed_instance_core_policy_arn
+  deployment_bucket_arn = module.app_s3.deployment_bucket_arn
+  database_secret_arn   = module.rds.master_user_secret_arn
 
   private_subnet_id             = module.vpc.private_application_subnet_ids[0]
   application_security_group_id = module.security.application_security_group_id
@@ -61,6 +61,8 @@ module "compute" {
   root_volume_size    = 8
   root_volume_type    = "gp3"
   detailed_monitoring = false
+
+  tags = local.common_tags
 }
 
 ### Database
@@ -68,11 +70,8 @@ module "compute" {
 module "rds" {
   source = "../../modules/rds"
 
-  project     = "meeps"
-  environment = "dev"
-
-  database_identifier = local.database_identifier
-  database_tags       = local.database_tags
+  project     = var.project
+  environment = var.environment
 
   private_database_subnet_ids = module.vpc.private_database_subnet_ids
   rds_security_group_id       = module.security.rds_security_group_id
@@ -98,8 +97,10 @@ module "rds" {
 module "app_s3" {
   source = "../../modules/app-s3"
 
-  bucket_name            = local.application_bucket_name
-  deployment_bucket_name = local.deployment_bucket_name
-  force_destroy          = false
-  tags                   = local.common_tags
+  project          = var.project
+  environment      = var.environment
+  application_name = "users-posts-api"
+
+  force_destroy = false
+  tags          = local.common_tags
 }

@@ -22,15 +22,36 @@ variable "environment" {
   }
 }
 
-variable "ami_id" {
-  description = "Amazon Machine Image ID used by the backend instance."
+variable "application_name" {
+  description = "Application name used in the S3 release path."
   type        = string
+  default     = "users-posts-api"
   nullable    = false
 
   validation {
-    condition     = can(regex("^ami-[0-9a-f]+$", var.ami_id))
-    error_message = "AMI ID must use a valid ami-xxxxxxxx format."
+    condition     = length(trimspace(var.application_name)) > 0
+    error_message = "Application name cannot be empty."
   }
+}
+
+variable "deployment_bucket_arn" {
+  description = "ARN of the private deployment-artifact bucket."
+  type        = string
+  nullable    = false
+}
+
+variable "database_secret_arn" {
+  description = "ARN of the RDS-managed Secrets Manager secret."
+  type        = string
+  sensitive   = true
+  nullable    = false
+}
+
+variable "tags" {
+  description = "Common tags applied to compute resources."
+  type        = map(string)
+  default     = {}
+  nullable    = false
 }
 
 variable "instance_type" {
@@ -42,17 +63,6 @@ variable "instance_type" {
   validation {
     condition     = contains(["t3.micro", "t3.small"], var.instance_type)
     error_message = "Approved EC2 types are t3.micro and t3.small."
-  }
-}
-
-variable "ssm_managed_policy_arn" {
-  description = "ARN of the AmazonSSMManagedInstanceCore managed policy."
-  type        = string
-  nullable    = false
-
-  validation {
-    condition     = endswith(var.ssm_managed_policy_arn, "/AmazonSSMManagedInstanceCore")
-    error_message = "Provide the AmazonSSMManagedInstanceCore managed policy ARN."
   }
 }
 

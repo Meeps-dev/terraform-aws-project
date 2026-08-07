@@ -13,7 +13,7 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier = var.database_identifier
+  identifier = local.database_identifier
 
   engine         = var.database_config.engine
   engine_version = var.database_config.engine_version
@@ -51,5 +51,5 @@ resource "aws_db_instance" "main" {
   # Disabled for this cost-conscious development lab.
   performance_insights_enabled = false
 
-  tags = var.database_tags
+  tags = local.database_tags
 }

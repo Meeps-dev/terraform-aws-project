@@ -104,6 +104,17 @@ resource "aws_vpc_security_group_egress_rule" "application_to_rds" {
   ip_protocol                  = "tcp"
 }
 
+# Private application outbound access for SSM, S3, Secrets Manager,operating-system packages, and Python dependencies.
+resource "aws_vpc_security_group_egress_rule" "application_https" {
+  security_group_id = aws_security_group.application.id
+  description       = "HTTPS access for application deployment and AWS APIs"
+
+  cidr_ipv4   = "0.0.0.0/0"
+  from_port   = 443
+  to_port     = 443
+  ip_protocol = "tcp"
+}
+
 # RDS accepts database traffic only from the application SG.
 resource "aws_vpc_security_group_ingress_rule" "rds_from_application" {
   security_group_id = aws_security_group.rds.id

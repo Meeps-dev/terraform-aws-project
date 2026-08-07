@@ -24,7 +24,7 @@ resource "aws_subnet" "public" {
 
   cidr_block = var.public_subnet_cidrs[count.index]
 
-  availability_zone = var.availability_zones[count.index]
+  availability_zone = data.aws_availability_zones.available.names[count.index]
 
   map_public_ip_on_launch = true
 
@@ -41,7 +41,7 @@ resource "aws_subnet" "private_app" {
 
   cidr_block = var.private_app_subnet_cidrs[count.index]
 
-  availability_zone = var.availability_zones[count.index]
+  availability_zone = data.aws_availability_zones.available.names[count.index]
 
   map_public_ip_on_launch = false
 
@@ -58,7 +58,7 @@ resource "aws_subnet" "private_db" {
 
   cidr_block = var.private_db_subnet_cidrs[count.index]
 
-  availability_zone = var.availability_zones[count.index]
+  availability_zone = data.aws_availability_zones.available.names[count.index]
 
   map_public_ip_on_launch = false
 
