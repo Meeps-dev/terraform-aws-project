@@ -1,11 +1,11 @@
 resource "aws_s3_bucket" "main" {
-  bucket        = var.bucket_name
+  bucket        = local.bucket_name
   force_destroy = var.force_destroy
 
   tags = merge(
     var.tags,
     {
-      Name = var.bucket_name
+      Name = local.bucket_name
       Tier = "application-storage"
     }
   )
@@ -47,12 +47,12 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "main" {
 }
 
 resource "aws_s3_bucket" "deployment_artifacts" {
-  bucket = var.deployment_bucket_name
+  bucket = local.deployment_bucket_name
 
   tags = merge(
     var.tags,
     {
-      Name         = var.deployment_bucket_name
+      Name         = local.deployment_bucket_name
       purpose      = "application-deployment-artifacts"
       "managed-by" = "terraform"
     }

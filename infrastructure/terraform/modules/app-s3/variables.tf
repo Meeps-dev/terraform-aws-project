@@ -1,10 +1,47 @@
-variable "bucket_name" {
-  description = "Globally unique application bucket name supplied by the root module."
+variable "project" {
+  description = "Project name used for S3 resource naming."
   type        = string
+  default     = "meeps"
   nullable    = false
 
   validation {
-    condition = (
+    condition     = length(trimspace(var.project)) > 0
+    error_message = "Project cannot be empty."
+  }
+}
+
+variable "environment" {
+  description = "Environment used for S3 resource naming."
+  type        = string
+  default     = "dev"
+  nullable    = false
+
+  validation {
+    condition     = contains(["dev", "staging", "prod"], var.environment)
+    error_message = "Environment must be dev, staging, or prod."
+  }
+}
+
+variable "application_name" {
+  description = "Application name used for the deployment-artifact bucket."
+  type        = string
+  default     = "users-posts-api"
+  nullable    = false
+
+  validation {
+    condition     = length(trimspace(var.application_name)) > 0
+    error_message = "Application name cannot be empty."
+  }
+}
+
+variable "bucket_name" {
+  description = "Optional globally unique application bucket name override."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition = var.bucket_name == null ? true : (
       length(var.bucket_name) >= 3 &&
       length(var.bucket_name) <= 63 &&
       can(regex("^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$", var.bucket_name))
@@ -14,12 +51,13 @@ variable "bucket_name" {
 }
 
 variable "deployment_bucket_name" {
-  description = "Globally unique deployment bucket name supplied by the root module."
+  description = "Optional globally unique deployment bucket name override."
   type        = string
-  nullable    = false
+  default     = null
+  nullable    = true
 
   validation {
-    condition = (
+    condition = var.deployment_bucket_name == null ? true : (
       length(var.deployment_bucket_name) >= 3 &&
       length(var.deployment_bucket_name) <= 63 &&
       can(regex("^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$", var.deployment_bucket_name))
@@ -36,7 +74,8 @@ variable "force_destroy" {
 }
 
 variable "tags" {
-  description = "Tags supplied by the root module for S3 resources."
+  description = "Optional additional tags applied to S3 resources."
   type        = map(string)
+  default     = {}
   nullable    = false
 }

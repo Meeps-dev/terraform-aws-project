@@ -23,20 +23,15 @@ variable "environment" {
 }
 
 variable "database_identifier" {
-  description = "RDS instance identifier constructed by the root module."
+  description = "Optional RDS instance identifier override."
   type        = string
-  nullable    = false
+  default     = null
+  nullable    = true
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]+$", var.database_identifier))
+    condition     = var.database_identifier == null ? true : can(regex("^[a-z][a-z0-9-]+$", var.database_identifier))
     error_message = "Database identifier must begin with a lowercase letter and contain lowercase letters, numbers, or hyphens."
   }
-}
-
-variable "database_tags" {
-  description = "Final tags for the RDS instance, constructed by the root module."
-  type        = map(string)
-  nullable    = false
 }
 
 variable "private_database_subnet_ids" {
@@ -148,7 +143,8 @@ variable "backup_retention_period" {
 }
 
 variable "tags" {
-  description = "Tags applied to RDS resources."
+  description = "Optional additional tags applied to RDS resources."
   type        = map(string)
+  default     = {}
   nullable    = false
 }

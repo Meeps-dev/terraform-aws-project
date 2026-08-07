@@ -67,17 +67,6 @@ variable "private_db_subnet_cidrs" {
   }
 }
 
-variable "availability_zones" {
-  description = "Available AWS Availability Zones supplied by the root module."
-  type        = list(string)
-  nullable    = false
-
-  validation {
-    condition     = length(var.availability_zones) >= 2
-    error_message = "Provide at least two Availability Zones."
-  }
-}
-
 variable "enable_nat_gateway" {
   description = "Whether to create a NAT Gateway for the private application subnets."
   type        = bool

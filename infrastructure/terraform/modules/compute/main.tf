@@ -1,38 +1,33 @@
 resource "aws_iam_role" "backend" {
   name_prefix = "${var.project}-${var.environment}-backend-"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+  assume_role_policy = data.aws_iam_policy_document.backend_assume_role.json
 
-    Statement = [{
-      Effect = "Allow"
-
-      Principal = {
-        Service = "ec2.amazonaws.com"
-      }
-
-      Action = "sts:AssumeRole"
-    }]
-  })
-
-  tags = {
-    Name = "${var.project}-${var.environment}-backend-role"
-  }
-}
-
-resource "aws_iam_role_policy_attachment" "ssm" {
-  role = aws_iam_role.backend.name
-
-  policy_arn = var.ssm_managed_policy_arn
+  tags = merge(
+    var.tags,
+    {
+      project     = var.project
+      environment = var.environment
+      Name        = "${var.project}-${var.environment}-backend-role"
+    }
+  )
 }
 
 resource "aws_iam_instance_profile" "backend" {
   name_prefix = "${var.project}-${var.environment}-backend-"
   role        = aws_iam_role.backend.name
+
+  tags = merge(
+    var.tags,
+    {
+      project     = var.project
+      environment = var.environment
+    }
+  )
 }
 
 resource "aws_instance" "backend" {
-  ami           = var.ami_id
+  ami           = data.aws_ami.amazon_linux_2023.id
   instance_type = var.instance_type
 
   subnet_id              = var.private_subnet_id
@@ -62,17 +57,28 @@ resource "aws_instance" "backend" {
     instance_metadata_tags      = "enabled"
   }
 
-  tags = {
-    Name = "${var.project}-${var.environment}-backend"
-    Role = "backend"
-  }
+  tags = merge(
+    var.tags,
+    {
+      project     = var.project
+      environment = var.environment
+      Name        = "${var.project}-${var.environment}-backend"
+      Role        = "backend"
+    }
+  )
 
-  volume_tags = {
-    Name = "${var.project}-${var.environment}-backend-root"
-  }
+  volume_tags = merge(
+    var.tags,
+    {
+      project     = var.project
+      environment = var.environment
+      Name        = "${var.project}-${var.environment}-backend-root"
+    }
+  )
 
   depends_on = [
-    aws_iam_role_policy_attachment.ssm
+    aws_iam_role_policy_attachment.ssm,
+    aws_iam_role_policy.runtime_access,
   ]
 }
 
