@@ -1,4 +1,4 @@
-name: Day 73 - Inspect OIDC Claims
+name: Inspect OIDC Claims
 
 on:
   push:

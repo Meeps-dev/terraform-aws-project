@@ -1,4 +1,4 @@
-name: Day 73 - AWS OIDC Smoke Test
+name: AWS OIDC Smoke Test
 
 on:
   push:
