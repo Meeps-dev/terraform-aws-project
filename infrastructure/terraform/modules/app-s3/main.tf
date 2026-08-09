@@ -47,7 +47,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "main" {
 }
 
 resource "aws_s3_bucket" "deployment_artifacts" {
-  bucket = local.deployment_bucket_name
+  bucket        = local.deployment_bucket_name
+  force_destroy = var.deployment_force_destroy
 
   tags = merge(
     var.tags,

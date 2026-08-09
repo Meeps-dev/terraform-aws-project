@@ -101,6 +101,7 @@ module "app_s3" {
   environment      = var.environment
   application_name = "users-posts-api"
 
-  force_destroy = false
-  tags          = local.common_tags
+  force_destroy            = false
+  deployment_force_destroy = true
+  tags                     = local.common_tags
 }

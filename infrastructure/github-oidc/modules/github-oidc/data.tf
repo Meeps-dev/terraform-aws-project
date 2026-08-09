@@ -411,6 +411,7 @@ data "aws_iam_policy_document" "terraform_apply_changes" {
       "s3:DeleteBucketTagging",
       "s3:DeleteBucketWebsite",
       "s3:DeleteLifecycleConfiguration",
+      "s3:ListBucketVersions",
       "s3:PutBucketOwnershipControls",
       "s3:PutBucketPolicy",
       "s3:PutBucketPublicAccessBlock",
@@ -430,6 +431,7 @@ data "aws_iam_policy_document" "terraform_apply_changes" {
 
     actions = [
       "s3:DeleteObject",
+      "s3:DeleteObjectVersion",
       "s3:PutObject",
       "s3:PutObjectTagging",
     ]

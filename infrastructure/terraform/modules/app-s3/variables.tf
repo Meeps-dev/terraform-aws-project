@@ -73,6 +73,13 @@ variable "force_destroy" {
   nullable    = false
 }
 
+variable "deployment_force_destroy" {
+  description = "Whether Terraform may permanently delete all object versions and delete markers while destroying the deployment-artifacts bucket."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
 variable "tags" {
   description = "Optional additional tags applied to S3 resources."
   type        = map(string)
