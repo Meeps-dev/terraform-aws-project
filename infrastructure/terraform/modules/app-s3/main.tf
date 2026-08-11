@@ -86,3 +86,33 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "deployment_artifa
     }
   }
 }
+
+resource "aws_s3_bucket_lifecycle_configuration" "deployment_artifacts" {
+  bucket = aws_s3_bucket.deployment_artifacts.id
+
+  rule {
+    id     = "expire-old-application-releases"
+    status = "Enabled"
+
+    filter {
+      prefix = "releases/"
+    }
+
+    expiration {
+      days = 14
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days           = 7
+      newer_noncurrent_versions = 2
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+
+  depends_on = [
+    aws_s3_bucket_versioning.deployment_artifacts,
+  ]
+}
