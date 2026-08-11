@@ -1,4 +1,4 @@
-# Week 10 — Modular AWS Infrastructure with Terraform
+# Modular AWS Infrastructure with Terraform
 
 This project rebuilds a production-inspired three-tier AWS environment with reusable Terraform modules. It was completed as Week 10 of the Meeps Cloud/Platform Engineering roadmap and demonstrates infrastructure design, remote state management, dependency wiring, import, validation, troubleshooting, and cost-aware teardown.
 
