@@ -1,10 +1,10 @@
-* Week 11: Secure CI/CD with GitHub Actions, AWS OIDC, Terraform, S3, SSM, EC2 and RDS
+## Week 11: Secure CI/CD with GitHub Actions, AWS OIDC, Terraform, S3, SSM, EC2 and RDS
 
 
 
-* Project Overview
+## Project Overview
 
-* Week 11 focused on building a production-style CI/CD platform for a FastAPI backend and its AWS infrastructure.
+# Week 11 focused on building a production-style CI/CD platform for a FastAPI backend and its AWS infrastructure.
 
 * The project automated application testing, migration validation, security auditing, artifact packaging, Terraform planning, protected infrastructure changes and deployment to a private EC2 instance. GitHub Actions authenticated to AWS through OpenID Connect rather than permanent AWS access keys.
 
