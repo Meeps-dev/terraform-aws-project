@@ -40,6 +40,17 @@ variable "terraform_state_key" {
   type        = string
 }
 
+variable "ecr_repository_name" {
+  description = "Name of the ECR repository GitHub Actions may publish application images to."
+  type        = string
+  default     = "meeps-users-posts-api"
+
+  validation {
+    condition     = length(trimspace(var.ecr_repository_name)) > 0
+    error_message = "ecr_repository_name cannot be empty."
+  }
+}
+
 variable "deployment_bucket_name" {
   description = "Private S3 bucket used for application deployment artifacts."
   type        = string

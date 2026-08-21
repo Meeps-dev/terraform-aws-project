@@ -93,6 +93,34 @@ data "aws_iam_policy_document" "app_deploy_trust" {
   }
 }
 
+data "aws_iam_policy_document" "ecr_push_trust" {
+  statement {
+    sid     = "GitHubOIDCECRPushAccess"
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [local.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+
+      values = [
+        "${var.app_subject_prefix}:ref:refs/heads/main",
+      ]
+    }
+  }
+}
+
 # Permission policy documents attached to the GitHub Actions IAM roles.
 data "aws_iam_policy_document" "plan_state" {
   statement {
@@ -597,5 +625,43 @@ data "aws_iam_policy_document" "app_deploy" {
     ]
 
     resources = ["*"]
+  }
+}
+
+
+data "aws_iam_policy_document" "ecr_push" {
+  statement {
+    sid       = "GetECRAuthorizationToken"
+    effect    = "Allow"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "PushApplicationImage"
+    effect = "Allow"
+
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:CompleteLayerUpload",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart",
+    ]
+
+    resources = [local.ecr_repository_arn]
+  }
+
+  statement {
+    sid    = "ReadPublishedImageAndScanStatus"
+    effect = "Allow"
+
+    actions = [
+      "ecr:DescribeImages",
+      "ecr:DescribeImageScanFindings",
+    ]
+
+    resources = [local.ecr_repository_arn]
   }
 }
