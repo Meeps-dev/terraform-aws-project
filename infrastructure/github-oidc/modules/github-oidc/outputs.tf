@@ -17,3 +17,8 @@ output "app_deploy_role_arn" {
   description = "GitHub application deployment role ARN."
   value       = aws_iam_role.app_deploy.arn
 }
+
+output "ecr_push_role_arn" {
+  description = "GitHub Actions role ARN for publishing application images to ECR."
+  value       = aws_iam_role.ecr_push.arn
+}

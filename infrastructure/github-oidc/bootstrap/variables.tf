@@ -3,45 +3,61 @@ variable "aws_region" {
 }
 
 variable "existing_oidc_provider_arn" {
-  type    = string
-  default = null
+  description = "Existing GitHub OIDC provider ARN. Leave null to create the provider."
+  type        = string
+  default     = null
 }
 
 variable "terraform_subject_prefix" {
-  type = string
+  description = "Subject prefix for Terraform-related GitHub Actions."
+  type        = string
 }
 
 variable "app_subject_prefix" {
-  type = string
+  description = "Subject prefix for application-related GitHub Actions."
+  type        = string
 }
 
 variable "github_environment" {
-  type    = string
-  default = "dev"
+  description = "GitHub Environment used for protected apply and deployment jobs."
+  type        = string
+  default     = "dev"
 }
 
 variable "terraform_state_bucket_name" {
-  type = string
+  description = "Existing S3 bucket containing the Terraform remote state."
+  type        = string
 }
 
 variable "terraform_state_key" {
-  type = string
+  description = "Key for the Terraform state file in the S3 bucket."
+  type        = string
 }
 
 variable "deployment_bucket_name" {
-  type = string
+  description = "Private S3 bucket used for application deployment artifacts."
+  type        = string
 }
 
 variable "application_name" {
-  type    = string
-  default = "users-posts-api"
+  description = "Name of the application."
+  type        = string
+  default     = "users-posts-api"
 }
 
 variable "managed_s3_bucket_arns" {
-  type    = list(string)
-  default = []
+  description = "List of ARNs for S3 buckets managed by this module."
+  type        = list(string)
+  default     = []
+}
+
+variable "ecr_repository_name" {
+  description = "ECR repository the application workflow may publish to."
+  type        = string
+  default     = "meeps-users-posts-api"
 }
 
 variable "tags" {
-  type = map(string)
+  description = "Tags to apply to all resources created by this module."
+  type        = map(string)
 }

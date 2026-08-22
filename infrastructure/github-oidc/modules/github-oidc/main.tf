@@ -33,3 +33,12 @@ resource "aws_iam_role" "app_deploy" {
 
   tags = var.tags
 }
+
+resource "aws_iam_role" "ecr_push" {
+  name                 = "github-ecr-push-role"
+  description          = "GitHub OIDC role for publishing immutable application images to the approved ECR repository."
+  assume_role_policy   = data.aws_iam_policy_document.ecr_push_trust.json
+  max_session_duration = 3600
+
+  tags = var.tags
+}

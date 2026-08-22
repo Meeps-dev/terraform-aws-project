@@ -13,6 +13,7 @@ module "github_oidc" {
 
   deployment_bucket_name = var.deployment_bucket_name
   application_name       = var.application_name
+  ecr_repository_name    = var.ecr_repository_name
 
   managed_s3_bucket_arns = var.managed_s3_bucket_arns
 

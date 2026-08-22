@@ -69,3 +69,16 @@ resource "aws_iam_role_policy_attachment" "app_deploy" {
   role       = aws_iam_role.app_deploy.name
   policy_arn = aws_iam_policy.app_deploy.arn
 }
+
+resource "aws_iam_policy" "ecr_push" {
+  name        = "github-ecr-push-policy"
+  description = "Publish immutable application images and read scan results for the approved ECR repository."
+  policy      = data.aws_iam_policy_document.ecr_push.json
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "ecr_push" {
+  role       = aws_iam_role.ecr_push.name
+  policy_arn = aws_iam_policy.ecr_push.arn
+}
